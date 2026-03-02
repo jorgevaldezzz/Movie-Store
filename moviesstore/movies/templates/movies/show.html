@@ -1,0 +1,122 @@
+{% extends 'base.html' %} {% load static %} {% block content %}
+
+<div class="p-3">
+    <div class="container">
+        <div class="row mt-3">
+
+            <div class="col-md-6 mx-auto mb-3">
+                <h2>{{ template_data.movie.name }}</h2>
+                <hr />
+                <p><b>Description:</b> {{ template_data.movie.description }}</p>
+                <p><b>Price:</b> ${{ template_data.movie.price }}</p>
+
+                <form method="post" action="{% url 'cart.add' id=template_data.movie.id %}">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-auto">
+                            <div class="input-group">
+                                <div class="input-group-text">Quantity</div>
+                                <input type="number" min="1" max="10" class="form-control" name="quantity" value="1">
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn bg-dark text-white" type="submit">Add to cart</button>
+                        </div>
+                    </div>
+                </form>
+
+                <h2 class="mt-4">Rating</h2>
+                <hr />
+                <p>
+                    Average Rating:
+                    <b>
+            {% if template_data.avg_rating %}
+            <div class="stars-display">
+              {% for i in "12345" %}
+              {% if template_data.avg_rating and forloop.counter <= template_data.avg_rating %}
+               ★ {% else %} ☆ 
+              {% endif%} 
+              {% endfor %} 
+              </div>
+                <p>{{ template_data.avg_rating|floatformat:1 }} / 5</p>
+                {% else %}
+                No ratings yet
+                {% endif %}
+          </b>
+                </p>
+
+                {% if user.is_authenticated %}
+                <form method="POST" action="{% url 'movies.create_rating' id=template_data.movie.id %}">
+                    {% csrf_token %}
+
+                    <div class="star-rating">
+                        <input type="radio" name="rating" id="star5" value="5.0"><label for="star5">★</label>
+                        <input type="radio" name="rating" id="star4" value="4.0"><label for="star4">★</label>
+                        <input type="radio" name="rating" id="star3" value="3.0"><label for="star3">★</label>
+                        <input type="radio" name="rating" id="star2" value="2.0"><label for="star2">★</label>
+                        <input type="radio" name="rating" id="star1" value="1.0"><label for="star1">★</label>
+                    </div>
+
+                    <button type="submit" class="btn bg-dark text-white mt-2">
+            Submit Rating
+          </button>
+                </form>
+
+                {% if template_data.user_rating %}
+                <p>Your current rating: {{ template_data.user_rating.rating }}</p>
+                {% endif %} {% endif %}
+
+                <h2 class="mt-4">Reviews</h2>
+                <hr />
+
+                <ul class="list-group">
+                    {% for review in template_data.reviews %}
+                    <li class="list-group-item pb-3 pt-3">
+                        <h5>Review by {{ review.user.username }}</h5>
+                        <h6 class="text-muted">{{ review.date }}</h6>
+                        <p>{{ review.comment }}</p>
+
+                        {% if user.is_authenticated and user == review.user %}
+                        <a class="btn btn-primary" href="{% url 'movies.edit_review' id=template_data.movie.id review_id=review.id %}">
+              Edit
+            </a>
+                        <a class="btn btn-danger" href="{% url 'movies.delete_review' id=template_data.movie.id review_id=review.id %}">
+              Delete
+            </a> {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+
+                {% if user.is_authenticated %}
+                <div class="container mt-4">
+                    <div class="card shadow p-3 mb-4 rounded">
+                        <div class="card-body">
+                            <b>Create a review</b><br /><br />
+
+                            <form method="POST" action="{% url 'movies.create_review' id=template_data.movie.id %}">
+                                {% csrf_token %}
+                                <label>Comment:</label>
+                                <textarea name="comment" required class="form-control"></textarea>
+
+                                <div class="text-center mt-3">
+                                    <button type="submit" class="btn bg-dark text-white">
+                    Add Review
+                  </button>
+                                </div>
+                            </form>
+
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="col-md-6 mx-auto mb-3 text-center">
+                <img src="{{ template_data.movie.image.url }}" class="rounded img-card-400" />
+            </div>
+
+        </div>
+    </div>
+</div>
+
+{% endblock content %}

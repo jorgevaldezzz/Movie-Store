@@ -38,11 +38,38 @@
 .ms-footer-bottom a:hover {
     color: #fff;
 }
+
 .img-card-200 {
-  width: fit-content;
-  object-fit-cover
+    width: fit-content;
+    object-fit-cover
 }
+
 .img-card-400 {
-  width: fit-content;
-  max-height: 400px;
+    width: fit-content;
+    max-height: 400px;
+}
+
+.star-rating {
+    direction: rtl;
+    display: inline-flex;
+    font-size: 2rem;
+}
+
+.star-rating input {
+    display: none;
+}
+
+.star-rating label {
+    color: #ccc;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.star-rating input:checked~label {
+    color: gold;
+}
+
+.star-rating label:hover,
+.star-rating label:hover~label {
+    color: gold;
 }
