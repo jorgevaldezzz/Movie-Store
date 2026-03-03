@@ -1,4 +1,4 @@
-{% extends 'base.html' %} {% load static %} {% block content %}
+﻿{% extends 'base.html' %} {% load static %} {% block content %}
 
 <div class="p-3">
     <div class="container">
@@ -27,34 +27,34 @@
 
                 <h2 class="mt-4">Rating</h2>
                 <hr />
-                <p>
-                    Average Rating:
-                    <b>
-            {% if template_data.avg_rating %}
-            <div class="stars-display">
-              {% for i in "12345" %}
-              {% if template_data.avg_rating and forloop.counter <= template_data.avg_rating %}
-               ★ {% else %} ☆ 
-              {% endif%} 
-              {% endfor %} 
-              </div>
-                <p>{{ template_data.avg_rating|floatformat:1 }} / 5.0</p>
-                {% else %}
-                No ratings yet
-                {% endif %}
-          </b>
-                </p>
+                <div>
+                    <b>Average Rating:</b>
+                    {% if template_data.avg_rating %}
+                    <div class="stars-display">
+                        {% for i in "12345" %}
+                        {% if template_data.avg_rating and forloop.counter <= template_data.avg_rating %}
+                        &#9733;
+                        {% else %}
+                        &#9734;
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    <p>{{ template_data.avg_rating|floatformat:1 }} / 5.0</p>
+                    {% else %}
+                    <p>No ratings yet</p>
+                    {% endif %}
+                </div>
 
                 {% if user.is_authenticated %}
                 <form method="POST" action="{% url 'movies.create_rating' id=template_data.movie.id %}">
                     {% csrf_token %}
 
                     <div class="star-rating">
-                        <input type="radio" name="rating" id="star5" value="5.0"><label for="star5">★</label>
-                        <input type="radio" name="rating" id="star4" value="4.0"><label for="star4">★</label>
-                        <input type="radio" name="rating" id="star3" value="3.0"><label for="star3">★</label>
-                        <input type="radio" name="rating" id="star2" value="2.0"><label for="star2">★</label>
-                        <input type="radio" name="rating" id="star1" value="1.0"><label for="star1">★</label>
+                        <input type="radio" name="rating" id="star5" value="5.0"><label for="star5">&#9733;</label>
+                        <input type="radio" name="rating" id="star4" value="4.0"><label for="star4">&#9733;</label>
+                        <input type="radio" name="rating" id="star3" value="3.0"><label for="star3">&#9733;</label>
+                        <input type="radio" name="rating" id="star2" value="2.0"><label for="star2">&#9733;</label>
+                        <input type="radio" name="rating" id="star1" value="1.0"><label for="star1">&#9733;</label>
                     </div>
 
                     <button type="submit" class="btn bg-dark text-white mt-2">

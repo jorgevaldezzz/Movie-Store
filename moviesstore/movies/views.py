@@ -1,7 +1,9 @@
-from django.shortcuts import render, redirect, get_object_or_404
+﻿from django.shortcuts import render, redirect, get_object_or_404
 from .models import Movie, Review, Rating
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg
+
+ALLOWED_RATING_VALUES = {'1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0', '4.5', '5.0'}
 
 
 def index(request):
@@ -19,7 +21,7 @@ def index(request):
 
 
 def show(request, id):
-    movie = Movie.objects.get(id=id)
+    movie = get_object_or_404(Movie, id=id)
     reviews = Review.objects.filter(movie=movie)
     ratings = Rating.objects.filter(movie=movie)
 
@@ -42,13 +44,15 @@ def show(request, id):
 
 @login_required
 def create_review(request, id):
-    if request.method == 'POST' and request.POST['comment'] != '':
-        movie = Movie.objects.get(id=id)
-        review = Review()
-        review.comment = request.POST['comment']
-        review.movie = movie
-        review.user = request.user
-        review.save()
+    if request.method == 'POST':
+        comment = request.POST.get('comment', '').strip()
+        if comment:
+            movie = get_object_or_404(Movie, id=id)
+            review = Review()
+            review.comment = comment
+            review.movie = movie
+            review.user = request.user
+            review.save()
 
     return redirect('movies.show', id=id)
 
@@ -67,9 +71,11 @@ def edit_review(request, id, review_id):
         }
         return render(request, 'movies/edit_review.html', {'template_data': template_data})
 
-    elif request.method == 'POST' and request.POST['comment'] != '':
-        review.comment = request.POST['comment']
-        review.save()
+    elif request.method == 'POST':
+        comment = request.POST.get('comment', '').strip()
+        if comment:
+            review.comment = comment
+            review.save()
 
     return redirect('movies.show', id=id)
 
@@ -84,11 +90,10 @@ def delete_review(request, id, review_id):
 @login_required
 def create_rating(request, id):
     if request.method == 'POST':
-        movie = Movie.objects.get(id=id)
+        movie = get_object_or_404(Movie, id=id)
         rating_value = request.POST.get('rating')
 
-        allowed_values = ['1.0','1.5','2.0','2.5','3.0','3.5','4.0','4.5','5.0']
-        if rating_value not in allowed_values:
+        if rating_value not in ALLOWED_RATING_VALUES:
             return redirect('movies.show', id=id)
 
         rating, created = Rating.objects.get_or_create(
@@ -109,8 +114,10 @@ def edit_rating(request, id):
     rating = get_object_or_404(Rating, movie_id=id, user=request.user)
 
     if request.method == 'POST':
-        rating.rating = request.POST['rating']
-        rating.save()
+        rating_value = request.POST.get('rating')
+        if rating_value in ALLOWED_RATING_VALUES:
+            rating.rating = rating_value
+            rating.save()
         return redirect('movies.show', id=id)
 
     return render(request, 'movies/edit_rating.html', {'rating': rating})
