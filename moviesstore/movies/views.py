@@ -1,7 +1,14 @@
+import csv
+import json
+from pathlib import Path
+from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
+import django_countries
 from .models import Movie, Review, Rating
 from django.contrib.auth.decorators import login_required
-from django.db.models import Avg
+from django.db.models import Avg, Count
+
+ALLOWED_RATING_VALUES = {'1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0', '4.5', '5.0'}
 
 
 def index(request):
@@ -19,7 +26,7 @@ def index(request):
 
 
 def show(request, id):
-    movie = Movie.objects.get(id=id)
+    movie = get_object_or_404(Movie, id=id)
     reviews = Review.objects.filter(movie=movie)
     ratings = Rating.objects.filter(movie=movie)
 
@@ -42,13 +49,15 @@ def show(request, id):
 
 @login_required
 def create_review(request, id):
-    if request.method == 'POST' and request.POST['comment'] != '':
-        movie = Movie.objects.get(id=id)
-        review = Review()
-        review.comment = request.POST['comment']
-        review.movie = movie
-        review.user = request.user
-        review.save()
+    if request.method == 'POST':
+        comment = request.POST.get('comment', '').strip()
+        if comment:
+            movie = get_object_or_404(Movie, id=id)
+            review = Review()
+            review.comment = comment
+            review.movie = movie
+            review.user = request.user
+            review.save()
 
     return redirect('movies.show', id=id)
 
@@ -67,9 +76,11 @@ def edit_review(request, id, review_id):
         }
         return render(request, 'movies/edit_review.html', {'template_data': template_data})
 
-    elif request.method == 'POST' and request.POST['comment'] != '':
-        review.comment = request.POST['comment']
-        review.save()
+    elif request.method == 'POST':
+        comment = request.POST.get('comment', '').strip()
+        if comment:
+            review.comment = comment
+            review.save()
 
     return redirect('movies.show', id=id)
 
@@ -84,11 +95,10 @@ def delete_review(request, id, review_id):
 @login_required
 def create_rating(request, id):
     if request.method == 'POST':
-        movie = Movie.objects.get(id=id)
+        movie = get_object_or_404(Movie, id=id)
         rating_value = request.POST.get('rating')
 
-        allowed_values = ['1.0','1.5','2.0','2.5','3.0','3.5','4.0','4.5','5.0']
-        if rating_value not in allowed_values:
+        if rating_value not in ALLOWED_RATING_VALUES:
             return redirect('movies.show', id=id)
 
         rating, created = Rating.objects.get_or_create(
@@ -109,8 +119,10 @@ def edit_rating(request, id):
     rating = get_object_or_404(Rating, movie_id=id, user=request.user)
 
     if request.method == 'POST':
-        rating.rating = request.POST['rating']
-        rating.save()
+        rating_value = request.POST.get('rating')
+        if rating_value in ALLOWED_RATING_VALUES:
+            rating.rating = rating_value
+            rating.save()
         return redirect('movies.show', id=id)
 
     return render(request, 'movies/edit_rating.html', {'rating': rating})
@@ -121,3 +133,63 @@ def delete_rating(request, id):
     rating = get_object_or_404(Rating, movie_id=id, user=request.user)
     rating.delete()
     return redirect('movies.show', id=id)
+
+
+def map_view(request):
+    # country_code -> {movie_id, movie_name, avg_rating, rating_count}                                                                                                                                                                                                     
+    top_per_country = {}                                                                                                                                                                                                                                                   
+                                                                                                                                                                                                                                                                             
+    rows = (                                                                                                                                                                                                                                                               
+        Rating.objects                                                                                                                                                                                                                                                     
+        .exclude(user__profile__region__isnull=True)                                                                                                                                                                                                                       
+        .values("user__profile__region", "movie__id", "movie__name", "movie__image")                                                                                                                                                                                       
+        .annotate(avg_rating=Avg("rating"), rating_count=Count("id"))                                                                                                                                                                                                      
+    )                                                                                                                                                                                                                                                                      
+                                                                                                                                                                                                                                                                           
+    for row in rows:                                                                                                                                                                                                                                                       
+        country = row["user__profile__region"]                                                                                                                                                                                                                             
+        current = top_per_country.get(country)                                                                                                                                                                                                                             
+        if current is None:                                                                                                                                                                                                                                                
+            top_per_country[country] = row                                                                                                                                                                                                                                 
+            continue                                                                                                                                                                                                                                                       
+                                                                                                                                                                                                                                                                           
+        # pick higher avg rating, tie-breaker by more ratings                                                                                                                                                                                                              
+        if (row["avg_rating"] > current["avg_rating"]) or (                                                                                                                                                                                                                
+            row["avg_rating"] == current["avg_rating"]                                                                                                                                                                                                                     
+            and row["rating_count"] > current["rating_count"]                                                                                                                                                                                                              
+        ):                                                                                                                                                                                                                                                                 
+            top_per_country[country] = row   
+            
+    # use countries.csv to add lat long points 
+    csv_path = Path(__file__).resolve().parent / "data" / "countries.csv"  
+    iso_to_latlng = {}                                                                                                                                                                                                                                                     
+    with csv_path.open(newline="", encoding="utf-8") as f:                                                                                                                                                                                                                 
+        reader = csv.DictReader(f)                                                                                                                                                                                                                                         
+        for r in reader:                                                                                                                                                                                                                                                   
+          iso_to_latlng[r["ISO"]] = {                                                                                                                                                                                                                                    
+              "lat": float(r["latitude"]),                                                                                                                                                                                                                               
+              "lng": float(r["longitude"]),                                                                                                                                                                                                                              
+          }                                                                                                                                                                                                                                                              
+                                                                                                                                                                                                                                                                         
+    map_points = []
+    for iso, row in top_per_country.items():
+        latlng = iso_to_latlng.get(iso)
+        if not latlng:
+            continue
+        image_path = row["movie__image"]
+        image_url = f"{settings.MEDIA_URL}{image_path}" if image_path else ""
+        map_points.append({
+            "country": iso,
+            "movie_name": row["movie__name"],
+            "avg_rating": float(row["avg_rating"]),
+            "image_url": image_url,
+            "lat": latlng["lat"],
+            "lng": latlng["lng"],
+        })
+
+    template_data = {
+        'title': 'Movie Map',
+        'popMoviesToCountryMap': top_per_country,
+        'map_points_json': json.dumps(map_points)
+    }
+    return render(request, 'movies/map.html', {'template_data': template_data})

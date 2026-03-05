@@ -23,7 +23,7 @@ class Review(models.Model):
 class Rating(models.Model):
     movie = models.ForeignKey(Movie, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-
+    
     rating = models.DecimalField(
         max_digits=2,
         decimal_places=1,
