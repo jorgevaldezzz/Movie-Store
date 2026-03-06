@@ -1,7 +1,15 @@
-﻿from django.shortcuts import render, redirect, get_object_or_404
+import csv
+import json
+from pathlib import Path
+from django.conf import settings
+from django.shortcuts import render, redirect, get_object_or_404
+import django_countries
 from .models import Movie, Review, Rating
 from django.contrib.auth.decorators import login_required
-from django.db.models import Avg
+from django.db.models import Avg, Count
+from django.core.serializers.json import DjangoJSONEncoder
+
+ALLOWED_RATING_VALUES = {'1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0', '4.5', '5.0'}
 
 ALLOWED_RATING_VALUES = {'1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0', '4.5', '5.0'}
 
@@ -128,3 +136,64 @@ def delete_rating(request, id):
     rating = get_object_or_404(Rating, movie_id=id, user=request.user)
     rating.delete()
     return redirect('movies.show', id=id)
+
+
+def map_view(request):
+    # country_code -> {movie_id, movie_name, avg_rating, rating_count}                                                                                                                                                                                                     
+    top_per_country = {}                                                                                                                                                                                                                                                   
+                                                                                                                                                                                                                                                                             
+    rows = (                                                                                                                                                                                                                                                               
+        Rating.objects                                                                                                                                                                                                                                                     
+        .exclude(user__profile__region__isnull=True)                                                                                                                                                                                                                       
+        .values("user__profile__region", "movie__id", "movie__name", "movie__image")                                                                                                                                                                                       
+        .annotate(avg_rating=Avg("rating"), rating_count=Count("id"))                                                                                                                                                                                                      
+    )                                                                                                                                                                                                                                                                      
+     
+     # lets make a new map which holds top 5 movies per country                                                                                                                                                                                                                                                                      
+    for row in rows:                                                                                                                                                                                                                                                       
+        country = row["user__profile__region"]                                                                                                                                                                                                                             
+        current = top_per_country.get(country)                                                                                                                                                                                                                             
+        if current is None:                                                                                                                                                                                                                                                
+            top_per_country[country] = [row]                                                                                                                                                                                                                                 
+            continue  
+        
+        # we want to keep top 5 movies per country, so we will add the current movie to the list and then sort the list by avg_rating and rating_count and keep only top 5                                                                                                                                                                                                                                                        
+        top_per_country[country].append(row)
+        top_per_country[country].sort(key=lambda x: (x["avg_rating"], x["rating_count"]), reverse=True)
+        top_per_country[country] = top_per_country[country][:5]                                                                                                                                                                                                                                                     
+                                                                                                                                                                                                                                                                           
+    # Debug print removed to avoid noisy output in production.
+            
+    # use countries.csv to add lat long points 
+    csv_path = Path(__file__).resolve().parent / "data" / "countries.csv"  
+    iso_to_latlng = {}                                                                                                                                                                                                                                                     
+    with csv_path.open(newline="", encoding="utf-8") as f:                                                                                                                                                                                                                 
+        reader = csv.DictReader(f)                                                                                                                                                                                                                                         
+        for r in reader:                                                                                                                                                                                                                                                   
+          iso_to_latlng[r["ISO"]] = {                                                                                                                                                                                                                                    
+              "lat": float(r["latitude"]),                                                                                                                                                                                                                               
+              "lng": float(r["longitude"]),                                                                                                                                                                                                                              
+          }                                                                                                                                                                                                                                                              
+                                                                                                                                                                                                                                                                         
+    map_points = []
+    for iso, movielist in top_per_country.items():
+        latlng = iso_to_latlng.get(iso)
+        if not latlng:
+            continue
+        for row in movielist:
+            image_path = row["movie__image"]
+            image_url = f"{settings.MEDIA_URL}{image_path}" if image_path else ""
+            row["movie__image"] = image_url
+        map_points.append({
+            "country": iso,
+            "movies": top_per_country[iso],
+            "lat": latlng["lat"],
+            "lng": latlng["lng"],
+        })
+    print("MAP POINTS", map_points)  # Debug print to verify map points data structure
+    template_data = {
+        'title': 'Movie Map',
+        'popMoviesToCountryMap': top_per_country,
+        'map_points_json': json.dumps(map_points, cls=DjangoJSONEncoder)
+    }
+    return render(request, 'movies/map.html', {'template_data': template_data})
