@@ -1,0 +1,5 @@
+{% extends "admin/index.html" %}
+{% block content %}
+<p><a href="{% url 'admin:top_commenter' %}" class = "button">View Top Commenter</a></p>
+{{block.super}}
+{% endblock%}
