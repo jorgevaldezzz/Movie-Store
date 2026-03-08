@@ -1,5 +1,6 @@
 {% extends "admin/index.html" %}
 {% block content %}
 <p><a href="{% url 'admin:top_commenter' %}" class = "button">View Top Commenter</a></p>
+<p><a href="{% url 'admin:top_movie' %}" class = "button">View Top Movie</a></p>
 {{block.super}}
 {% endblock%}
