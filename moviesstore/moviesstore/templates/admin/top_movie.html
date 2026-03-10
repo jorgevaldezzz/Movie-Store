@@ -8,12 +8,18 @@
                 <hr />
                 {% if top_movie %}
                 <div class = "card mb-4">
-                    <div class = "card-header">#1 - {{top_movie.name }}</div>
+                    <div class = "card-header">#1 Purchased - {{top_movie.name }}</div>
                     <div class = "card-body">
                         <b>Times Purchased: </b> {{top_movie.purchases }}
                     </div>
+                    <div><p></p></div>
+
+                    <div class = "card-header">#1 Reviewed - {{top_reviewed.name }}</div>
+                    <div class = "card-body">
+                        <b>Reviews on: </b> {{top_reviewed.reviews }}
+                    </div>
                 </div>
-                <h3>Leaderboard</h3>
+                <h3>Purchases Leaderboard</h3>
                 <table class = "table table-bordered table-striped text-center mt-3">
                     <thead>
                     <tr>
@@ -34,6 +40,31 @@
                 </table>
                 {% else %}
                 <p>No movies have been made yet.</p>
+                {% endif %}
+
+
+                {% if top_reviewed %}
+                <h3>Reviews Leaderboard</h3>
+                <table class = "table table-bordered table-striped text-center mt-3">
+                    <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Movie</th>
+                        <th>Reviews</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movie in review_leaderboard %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ movie.name }}</td>
+                        <td>{{ movie.reviews }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p>No reviews have been made yet.</p>
                 {% endif %}
             </div>
         </div>

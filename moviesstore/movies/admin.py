@@ -46,11 +46,14 @@ class TopMovieAdmin:
     def top_movie_view(self, request):
         leaderboard = (Movie.objects.annotate(
             purchases=Sum('item__quantity')).values('name','purchases').order_by('-purchases'))
+        review_leaderboard = (Movie.objects.annotate(reviews=Count('review')).order_by('-reviews'))
 
         context = {
             **self.each_context(request),
             'title': 'Top Movie',
             'top_movie': leaderboard.first(),
+            'top_reviewed' : review_leaderboard.first(),
+            'review_leaderboard' : list(review_leaderboard),
             'leaderboard': list(leaderboard),
         }
         return render(request, 'admin/top_movie.html', context)
