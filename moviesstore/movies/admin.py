@@ -3,6 +3,7 @@ from .models import Movie, Review
 from django.db.models import Count, Sum
 from django.urls import path
 from django.shortcuts import render
+from cart.models import Item
 
 
 # Register your models here.
@@ -14,6 +15,25 @@ class MovieAdmin(admin.ModelAdmin):
 admin.site.register(Movie, MovieAdmin)
 admin.site.register(Review)
 admin.site.register(Rating)
+
+class TopPurchaserAdmin:
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('top-purchaser/', self.admin_view(self.top_purchaser_view), name='top-purchaser'),
+        ]
+        return custom_urls + urls
+    
+    def top_purchaser_view(self, request):
+        leaderboard = (Item.objects.values('order__user__id', 'order__user__username').annotate(purchases=Sum('quantity')).order_by('-purchases'))
+        
+        context = {
+            **self.each_context(request), 
+            'title': 'Top Purchaser', 
+            'top_purchaser': leaderboard.first(), 
+            'leaderboard': list(leaderboard), 
+        }
+        return render(request, 'admin/top_purchaser.html', context)
 
 class TopCommenterAdmin:
     def get_urls(self):
@@ -64,12 +84,14 @@ def patched_get_urls(self):
     custom = [
         path('top-commenter/', self.admin_view(self.top_commenter_view), name='top_commenter'),
         path('top-movie/', self.admin_view(self.top_movie_view), name='top_movie'),
+        path('top-purchaser/', self.admin_view(self.top_purchaser_view), name='top_purchaser'),
     ]
     return custom + original_get_urls(self)
 
 AdminSite.get_urls = patched_get_urls
 AdminSite.top_commenter_view = TopCommenterAdmin.top_commenter_view
 AdminSite.top_movie_view = TopMovieAdmin.top_movie_view
+AdminSite.top_purchaser_view = TopPurchaserAdmin.top_purchaser_view
 
         
         
